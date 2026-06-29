@@ -56,15 +56,30 @@
     }
     
     function loadRandomImage() {
+      // fetch at half the buffer width: the image is drawn once on the
+      // left and again mirrored on the right, so the two seams of the
+      // wrapped circle (the middle join and the angle wrap-around) match.
+      const halfW = ceil(buffer.width / 2);
       loadImage(
-        '//picsum.photos/'+buffer.width+'/'+buffer.height,
+        '//picsum.photos/'+halfW+'/'+buffer.height,
         loaded => {
           img = loaded;
+          // left half: the image as-is
           buffer.image(
-            img, 0, 0, 
-            buffer.width, buffer.height, 0, 0,
+            img, 0, 0,
+            halfW, buffer.height, 0, 0,
             img.width, img.height, COVER
           );
+          // right half: a horizontal mirror of the left half
+          buffer.push();
+          buffer.translate(buffer.width, 0);
+          buffer.scale(-1, 1);
+          buffer.image(
+            img, 0, 0,
+            halfW, buffer.height, 0, 0,
+            img.width, img.height, COVER
+          );
+          buffer.pop();
           buffer.loadPixels();
           redraw = true;
         }
