@@ -26,10 +26,7 @@
     
     const rectX = 60;
     const rectY = 80;
-    
-    const circleX = rectX + rectW / 2;
-    const circleY = rectY + rectH + r + 40;
-    
+
     // --------------------------------------------------
     // editable trapezium points
     // --------------------------------------------------
@@ -44,7 +41,8 @@
     const handleR = 8;
     
     let draggedPoint = -1;
-    let buffer;
+    let inputBuffer;
+    let outputBuffer;
     
     function selectMapType(inputElm) {
       mapType = inputElm.value;
@@ -59,28 +57,28 @@
       // fetch at half the buffer width: the image is drawn once on the
       // left and again mirrored on the right, so the two seams of the
       // wrapped circle (the middle join and the angle wrap-around) match.
-      const halfW = ceil(buffer.width / 2);
+      const halfW = ceil(inputBuffer.width / 2);
       loadImage(
-        '//picsum.photos/'+halfW+'/'+buffer.height,
+        '//picsum.photos/'+halfW+'/'+inputBuffer.height,
         loaded => {
           img = loaded;
           // left half: the image as-is
-          buffer.image(
+          inputBuffer.image(
             img, 0, 0,
-            halfW, buffer.height, 0, 0,
+            halfW, inputBuffer.height, 0, 0,
             img.width, img.height, COVER
           );
           // right half: a horizontal mirror of the left half
-          buffer.push();
-          buffer.translate(buffer.width, 0);
-          buffer.scale(-1, 1);
-          buffer.image(
+          inputBuffer.push();
+          inputBuffer.translate(inputBuffer.width, 0);
+          inputBuffer.scale(-1, 1);
+          inputBuffer.image(
             img, 0, 0,
-            halfW, buffer.height, 0, 0,
+            halfW, inputBuffer.height, 0, 0,
             img.width, img.height, COVER
           );
-          buffer.pop();
-          buffer.loadPixels();
+          inputBuffer.pop();
+          inputBuffer.loadPixels();
           redraw = true;
         }
       );
@@ -93,23 +91,39 @@
         redraw = true;
       }
     }
+
+    function exportCircle() {
+      // saves just the output circle, not the editing canvas
+      saveCanvas(outputBuffer, 'yytwirl', 'png');
+    }
     
     // --------------------------------------------------
     
     function setup() {
     
-      createCanvas(rectW + 100, rectH + 2 * r + 200).parent('canvas-container');
-      buffer = createGraphics(ceil(rectW), ceil(rectH)).parent('buffer-container');
-      buffer.pixelDensity(1);
-      buffer.canvas.style.display = 'block';
-      buffer.canvas.style.position = 'relative';
-      buffer.canvas.style.left = rectX+'px';
-      buffer.canvas.style.top = '20px';
-      buffer.canvas.style.border = '1px solid black';
-      buffer.loadPixels();
-      console.log(buffer.pixels.length / (buffer.width * buffer.height));
-      
-      
+      // main canvas holds only the editing area (frame, shape, handles)
+      createCanvas(rectW + 100, rectY + rectH + 40).parent('canvas-container');
+      inputBuffer = createGraphics(ceil(rectW), ceil(rectH)).parent('input-container');
+      inputBuffer.pixelDensity(1);
+      inputBuffer.canvas.style.display = 'block';
+      inputBuffer.canvas.style.position = 'relative';
+      inputBuffer.canvas.style.left = rectX+'px';
+      inputBuffer.canvas.style.top = '20px';
+      inputBuffer.canvas.style.border = '1px solid black';
+      inputBuffer.loadPixels();
+      console.log(inputBuffer.pixels.length / (inputBuffer.width * inputBuffer.height));
+
+      // the output circle is its own displayed buffer: shown, redrawn and
+      // exported independently. The pixels stay pure (just the disc) so the
+      // export is clean; the ring is drawn as a CSS border on the canvas.
+      outputBuffer = createGraphics(2 * r, 2 * r).parent('output-container');
+      outputBuffer.pixelDensity(1);
+      outputBuffer.canvas.style.display = 'block';
+      outputBuffer.canvas.style.position = 'relative';
+      outputBuffer.canvas.style.left = rectX+'px';
+      outputBuffer.canvas.style.top = '20px';
+      outputBuffer.canvas.style.borderRadius = '50%';
+      outputBuffer.canvas.style.border = '1px solid black';
     }
     
     // --------------------------------------------------
@@ -145,8 +159,6 @@
     
       rect(rectX, rectY, rectW, rectH);
       triangle(rectX, rectY, rectX+rectW, rectY, rectX+rectW/2, rectY+rectH);
-    
-      circle(circleX, circleY, 2 * r);
     }
     
     // --------------------------------------------------
@@ -173,19 +185,19 @@
     
     
     function drawBuffer() {
-      buffer.background(255);
+      inputBuffer.background(255);
     
-      buffer.noStroke();
-      buffer.fill(0);
+      inputBuffer.noStroke();
+      inputBuffer.fill(0);
     
-      buffer.beginShape();
+      inputBuffer.beginShape();
     
       for (let p of shape) {
-        buffer.vertex(p.x, p.y);
+        inputBuffer.vertex(p.x, p.y);
       }
     
-      buffer.endShape(CLOSE);
-      buffer.loadPixels();
+      inputBuffer.endShape(CLOSE);
+      inputBuffer.loadPixels();
     }
     
     
@@ -196,9 +208,13 @@
     function drawScannedShape() {
     
       const res = 1;
-    
-      noStroke();
-    
+
+      // render into the output buffer (origin at its top-left, circle
+      // centered at r,r); clear() keeps everything outside the disc
+      // transparent so only the circle shows when blitted/exported
+      outputBuffer.clear();
+      outputBuffer.noStroke();
+
       for (let cx = -r; cx <= r; cx += res) {
         if (debug) console.info('next line');
         for (let cy = -r; cy <= r; cy += res) {
@@ -213,22 +229,22 @@
           // denormalize rect to 2πr x r
           let x = floor(2*Math.PI*r*absx/100), y = floor(r*absy/100);
           
-          let idx = 4 * (x + y * buffer.width);
+          let idx = 4 * (x + y * inputBuffer.width);
           
-          if (x < 0 || x >= buffer.width || y < 0 || y >= buffer.height) {
-            if (debug) console.error('out of buffer 1',x,y,buffer.width,buffer.height);
+          if (x < 0 || x >= inputBuffer.width || y < 0 || y >= inputBuffer.height) {
+            if (debug) console.error('out of buffer 1',x,y,inputBuffer.width,inputBuffer.height);
           }
-          if (idx > buffer.pixels.length - 2) {
-            if (debug) console.error('out of buffer 2',x,y,buffer.pixels.length);
+          if (idx > inputBuffer.pixels.length - 2) {
+            if (debug) console.error('out of buffer 2',x,y,inputBuffer.pixels.length);
           }
           
-          let rr = buffer.pixels[idx];
-          let gg = buffer.pixels[idx + 1];
-          let bb = buffer.pixels[idx + 2];
+          let rr = inputBuffer.pixels[idx];
+          let gg = inputBuffer.pixels[idx + 1];
+          let bb = inputBuffer.pixels[idx + 2];
     
           if (debug) console.log('pixels',idx,rr,gg,bb);
-          fill(rr, gg, bb);
-          rect(circleX+cx, circleY+cy, res, res );
+          outputBuffer.fill(rr, gg, bb);
+          outputBuffer.rect(r+cx, r+cy, res, res );
         }
       }
     }
@@ -386,11 +402,14 @@
   <label><input type="radio" name="mapSource" value="drawing" checked onChange="selectMapSource(this)">drawing</label>
   <label><input type="radio" name="mapSource" value="random" onChange="selectMapSource(this)">random image</label>
   <button type="button" onclick="refresh()">Refresh</button>
+  <button type="button" onclick="exportCircle()">Export circle</button>
 </div>
 
 <div id="canvas-container"></div>
 
-<div id="buffer-container"></div>
+<div id="input-container"></div>
+
+<div id="output-container"></div>
 
 </body>
 </html>
