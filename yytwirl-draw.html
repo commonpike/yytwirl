@@ -71,9 +71,7 @@
         }
       }
     }
-    /* show editing canvas + input buffer per mode (body.drawing / body.random) */
     body.drawing {
-      #export-input { display:none; }
       #input-container { display: none; }
       #output-container { 
         canvas {
@@ -169,14 +167,24 @@
       }
     }
 
+    function getTimestamp() {
+      const d = new Date();
+      d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
+      
+      return d.toISOString()
+        .slice(0, 16)
+        .replace(/[-:T]/g, '')
+        .replace(/^(\d{8})(\d{4})$/, '$1-$2');
+    }
+    
     function exportInput() {
-      // saves just the output circle, not the editing canvas
-      saveCanvas(inputBuffer, 'yytwirl', 'png');
+      // saves the image loaded/drawn in the inputBuffer
+      saveCanvas(inputBuffer, getTimestamp()+'-yytwirl-input', 'png');
     }
     
     function exportOutput() {
-      // saves just the output circle, not the editing canvas
-      saveCanvas(outputBuffer, 'yytwirl', 'png');
+      // saves the outputBuffer
+      saveCanvas(outputBuffer, getTimestamp()+'-yytwirl-output', 'png');
     }
     
     // --------------------------------------------------
@@ -191,10 +199,6 @@
       inputBuffer = createGraphics(ceil(rectW), ceil(rectH)).parent('input-container');
       inputBuffer.pixelDensity(1);
       inputBuffer.canvas.style.display = 'block';
-      //inputBuffer.canvas.style.position = 'relative';
-      //inputBuffer.canvas.style.left = rectX+'px';
-      //inputBuffer.canvas.style.top = '20px';
-      //inputBuffer.canvas.style.border = '1px solid black';
       inputBuffer.loadPixels();
       console.log(inputBuffer.pixels.length / (inputBuffer.width * inputBuffer.height));
 
@@ -204,11 +208,7 @@
       outputBuffer = createGraphics(2 * r, 2 * r).parent('output-container');
       outputBuffer.pixelDensity(1);
       outputBuffer.canvas.style.display = 'block';
-      //outputBuffer.canvas.style.position = 'relative';
-      //outputBuffer.canvas.style.left = rectX+'px';
-      //outputBuffer.canvas.style.top = '20px';
-      //outputBuffer.canvas.style.borderRadius = '50%';
-      //outputBuffer.canvas.style.border = '1px solid black';
+      
     }
     
     // --------------------------------------------------
