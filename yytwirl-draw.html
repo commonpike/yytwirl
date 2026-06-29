@@ -6,13 +6,84 @@
   <style>
     body {
       font-family: sans-serif;
-      canvas {
-        margin:2em 0;
+      background-color:black;
+      color:white;
+      margin:0;
+      padding:0;
+      min-height:100vh;
+      display:flex;
+      aside {
+        padding:2em;
+        background-color:#333;
+        flex:1;
+        display:flex;
+        flex-direction:column;
+        button {
+          min-width:8em;
+          border-radius: 6px;
+           padding: .25em;
+          background-color: white;
+        }
+        
+        .controls {
+          ul {
+            list-style-type:none;
+            padding: 0 1em;
+          }
+        }
+        footer {
+          margin-top:auto;  
+          text-align:center;
+        }
+      }
+      main {
+        padding:2em;
+        flex:3;
+        display:flex;
+        flex-direction: column;
+        #output-container,
+        #input-container,
+        #canvas-container {
+          canvas {
+            display:block;
+            margin: 0 auto;
+          }
+        }
+        #output-container {
+          flex:3;
+          margin: 2em 0 4em;
+          display:flex;
+          canvas {
+            border-radius:50%;
+            width: auto !important;
+            height: auto !important;
+          }
+          cursor:pointer;
+        }
+        #input-container,
+        #canvas-container {
+          flex:1;
+          margin-top:auto;
+          margin-bottom:2em;
+        }
+        #input-container {
+          cursor:pointer;
+        }
       }
     }
     /* show editing canvas + input buffer per mode (body.drawing / body.random) */
-    body.drawing #input-container { display: none; }
-    body.random #canvas-container { display: none; }
+    body.drawing {
+      #export-input { display:none; }
+      #input-container { display: none; }
+      #output-container { 
+        canvas {
+          border:1px solid white; 
+        }
+      }
+    }
+    body.random {
+      #canvas-container { display: none; }
+    }
   </style>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.9.0/p5.min.js"></script>
   <script src="yytwirl-mapping.js"></script>
@@ -98,7 +169,12 @@
       }
     }
 
-    function exportCircle() {
+    function exportInput() {
+      // saves just the output circle, not the editing canvas
+      saveCanvas(inputBuffer, 'yytwirl', 'png');
+    }
+    
+    function exportOutput() {
       // saves just the output circle, not the editing canvas
       saveCanvas(outputBuffer, 'yytwirl', 'png');
     }
@@ -109,13 +185,16 @@
     
       // main canvas holds only the editing area (frame, shape, handles)
       createCanvas(rectW + 100, rectY + rectH + 40).parent('canvas-container');
+      
+      // input buffer, either drawn from main canvas drawing or 
+      // displaying imported image
       inputBuffer = createGraphics(ceil(rectW), ceil(rectH)).parent('input-container');
       inputBuffer.pixelDensity(1);
       inputBuffer.canvas.style.display = 'block';
-      inputBuffer.canvas.style.position = 'relative';
-      inputBuffer.canvas.style.left = rectX+'px';
-      inputBuffer.canvas.style.top = '20px';
-      inputBuffer.canvas.style.border = '1px solid black';
+      //inputBuffer.canvas.style.position = 'relative';
+      //inputBuffer.canvas.style.left = rectX+'px';
+      //inputBuffer.canvas.style.top = '20px';
+      //inputBuffer.canvas.style.border = '1px solid black';
       inputBuffer.loadPixels();
       console.log(inputBuffer.pixels.length / (inputBuffer.width * inputBuffer.height));
 
@@ -125,11 +204,11 @@
       outputBuffer = createGraphics(2 * r, 2 * r).parent('output-container');
       outputBuffer.pixelDensity(1);
       outputBuffer.canvas.style.display = 'block';
-      outputBuffer.canvas.style.position = 'relative';
-      outputBuffer.canvas.style.left = rectX+'px';
-      outputBuffer.canvas.style.top = '20px';
-      outputBuffer.canvas.style.borderRadius = '50%';
-      outputBuffer.canvas.style.border = '1px solid black';
+      //outputBuffer.canvas.style.position = 'relative';
+      //outputBuffer.canvas.style.left = rectX+'px';
+      //outputBuffer.canvas.style.top = '20px';
+      //outputBuffer.canvas.style.borderRadius = '50%';
+      //outputBuffer.canvas.style.border = '1px solid black';
     }
     
     // --------------------------------------------------
@@ -324,24 +403,52 @@
 </head>
 <body class="drawing">
 
-<h1>Twirl Mappings</h1>
-
-<div class="controls">
-  <h3>MapType</h3>
-  <label><input type="radio" name="mapType" value="rectangle" checked onChange="selectMapType(this)">rectangle</label>
-  <label><input type="radio" name="mapType" value="triangle" onChange="selectMapType(this)">triangle</label>
-  <h3>MapSource</h3>
-  <label><input type="radio" name="mapSource" value="drawing" checked onChange="selectMapSource(this)">drawing</label>
-  <label><input type="radio" name="mapSource" value="random" onChange="selectMapSource(this)">random image</label>
-  <button type="button" onclick="refresh()">Refresh</button>
-  <button type="button" onclick="exportCircle()">Export circle</button>
-</div>
-
-<div id="canvas-container"></div>
-
-<div id="input-container"></div>
-
-<div id="output-container"></div>
+  <aside>
+    <h1>Twirl Mappings</h1>
+    
+    <div class="controls">
+      <h3>MapType</h3>
+      <ul>
+        <li>
+          <label>
+            <input type="radio" name="mapType" value="rectangle" checked onChange="selectMapType(this)">rectangle
+          </label>
+        </li>
+        <li>
+          <label>
+            <input type="radio" name="mapType" value="triangle" onChange="selectMapType(this)">triangle
+          </label>
+        </li>
+      </ul>
+      <h3>MapSource</h3>
+      <ul>
+        <li>
+          <label>
+            <input type="radio" name="mapSource" value="drawing" checked onChange="selectMapSource(this)">drawing
+          </label>
+        </li>
+        <li>
+          <label>
+            <input type="radio" name="mapSource" value="random" onChange="selectMapSource(this)">random image
+          </label><br>
+          <button type="button" onclick="refresh()">Refresh</button>
+        </li>
+      </ul>
+    </div>
+    <footer>
+      <button id="export-input" type="button" onclick="exportInput()">
+        Export input
+      </button>
+      <button id="export-output" type="button" onclick="exportOutput()">
+        Export output
+      </button>
+    </footer>
+  </aside>
+  <main>
+    <div id="output-container" onclick="exportOutput()" title="export output"></div>
+    <div id="input-container" onclick="exportInput()" title="export input"></div>
+    <div id="canvas-container"></div>
+  </main>
 
 </body>
 </html>
