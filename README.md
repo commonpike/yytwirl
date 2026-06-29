@@ -1,5 +1,7 @@
 # yytwirl 🌀
 
+<img src="favicon.png" alt="yytwirl" width="120" align="right">
+
 Take a flat strip of pixels, grab one edge, and *twirl* it into a disc. That's the whole idea. These are little [p5.js](https://p5js.org/) sketches for playing with the math that wraps a **rectangle** (or a **triangle**) onto a **circle** — and unwraps it back again.
 
 Think of it like rolling up a poster into a tube and looking down the end, except the poster is also allowed to taper to a single point in the middle. Spooky.
