@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <style>
+    body {
+      font-family:sans-serif;
+      canvas: {
+        margin:2em 0;
+      }
+    }
+  </style>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.9.0/p5.min.js"></script>
+  <script>
+    
+    let redraw = true;
+    let mapType = "triangle";
+    let debug = true;
+    
+    const r = 120;
+    
+    // input rectangle: x ∈ [-πr, πr], y ∈ [0, r]
+    const rectW = 2 * Math.PI * r;
+    const rectH = r;
+    
+    const rectLeft = 50;
+    const rectTop = 80;
+    
+    const circleCenterX = rectLeft + rectW / 2;
+    const circleCenterY = rectTop + rectH + r + 40;
+    
+    let rect2circ = [];
+    let circ2rect = [];
+    
+    function selectMapType(inputElm) {
+      mapType = inputElm.value;
+      redraw = true;
+      rect2circ = [];
+      circ2rect = [];
+    }
+    
+    function setup() {
+      createCanvas(rectLeft + rectW + 100, rectTop + rectH + 2*r + 100)
+        .parent('canvas-container');
+    }
+    
+    function draw() {
+      if (redraw) {
+        console.clear();
+        console.log('redraw');
+        background(245);
+      
+        drawInputRect();
+        drawOutputCircle();
+        drawMappings();
+        redraw = false;
+      }
+    }
+    
+    function drawInputRect() {
+      push();
+      translate(rectLeft, rectTop);
+    
+      noFill();
+      stroke(0);
+      rect(0, 0, rectW, rectH);
+      triangle(0, 0, rectW, 0, rectW/2, rectH);
+    
+      noStroke();
+      fill(0);
+      text("INPUT RECTANGLE", 0, -10);
+    
+      pop();
+    }
+    
+    function drawOutputCircle() {
+      push();
+      translate(circleCenterX, circleCenterY);
+    
+      noFill();
+      stroke(0);
+      circle(0, 0, 2 * r);
+    
+      noStroke();
+      fill(0);
+      text("OUTPUT CIRCLE", -60, -r - 15);
+    
+      pop();
+    }
+    
+    function drawMappings() {
+    
+      for (let p of rect2circ) {
+    
+        // --- source (visual rectangle space)
+        const sx = rectLeft + p.rx;
+        const sy = rectTop + p.ry;
+    
+        fill(30, 120, 255);
+        noStroke();
+        circle(sx, sy, 7);
+    
+        // --- normalize to rect coordinates
+        const ix = p.rx;
+        const iy = p.ry;
+        
+        //const {x,y} = mapTri2Circ(ix,iy,r);
+
+        // --- normalize rect to 100x100
+        
+        let normix = 100 * ix / (2 * Math.PI * r);
+        let normiy = 100 * iy / r;
+        const {x: normx,y: normy} = mapType === 'triangle' 
+          ? mapTri2Circ(normix,normiy)
+          : mapRect2Circ(normix,normiy);
+        // -- denormalize circ to r
+        let x = r * normx / 100;
+        let y = r * normy / 100;
+        
+        
+        // --- output coordinates
+        const ox = circleCenterX + x;
+        const oy = circleCenterY + y;
+    
+        // connector
+        stroke(180);
+        line(sx, sy, ox, oy);
+    
+        // output point
+        fill(255, 80, 80);
+        noStroke();
+        circle(ox, oy, 7);
+      }
+      
+      for (let p of circ2rect) {
+        // --- source (visual circle space)
+        const sx = circleCenterX + p.rx;
+        const sy = circleCenterY + p.ry;
+    
+        fill(30, 120, 255);
+        noStroke();
+        circle(sx, sy, 7);
+        
+        const ix = p.rx;
+        const iy = p.ry;
+        
+        //const {x,y} = mapType === 'triangle' 
+        //  ? mapCirc2Tri(ix,iy,r)
+        //  : mapCirc2Rect(ix,iy,r)
+        
+        // normalize circle to 100
+        let normix = 100 * ix / r
+        let normiy = 100 * iy / r
+        const {x: normx,y: normy} = mapType === 'triangle' 
+          ? mapCirc2Tri(normix,normiy)
+          : mapCirc2Rect(normix,normiy);
+        // denormalize rect to 2pi*r x r
+        let x = normx * 2 * Math.PI * r / 100;
+        let y = normy * r / 100
+        
+        
+        // --- output coordinates
+        const ox = rectLeft + x;
+        const oy = rectTop + y;
+    
+        // connector
+        stroke(180);
+        line(sx, sy, ox, oy);
+    
+        // output point
+        fill(255, 80, 80);
+        noStroke();
+        circle(ox, oy, 7);
+        
+      }
+    }
+    
+    
+    
+    function mousePressed() {
+    
+      // catch mouse clicks in rect
+      const rxRect = mouseX - rectLeft;
+      const ryRect = mouseY - rectTop;
+    
+      if (rxRect >= 0 && rxRect <= rectW && ryRect >= 0 && ryRect <= rectH) {
+        rect2circ.push({ rx: rxRect, ry: ryRect });
+        redraw = true;
+      }
+      
+      // catch mouse clicks in circle
+      const rxCirc = mouseX - circleCenterX;
+      const ryCirc = mouseY - circleCenterY;
+      //console.log(rxCirc,ryCirc);
+      if (rxCirc >= -r && rxCirc <= r && ryCirc >= -r && ryCirc <= r) {
+        //console.log('yes');
+        circ2rect.push({ rx: rxCirc, ry: ryCirc });
+        redraw = true;
+      }
+      
+    }
+    
+    function absmod(n, m) {
+      return ((n % m) + m) % m;
+    }
+  
+    /* ------------
+      mappings 
+    ------------- */
+    
+    function mapRect2Circ(x,y) {
+      // input x,y are from top,left of rect 100x100
+      // output x,y are from center of circle radius 100
+      const angle = 2*Math.PI*x / 100;
+      const res = {
+        x:(100 - y) * Math.sin(angle),
+        y:(y - 100) * Math.cos(angle)
+      };
+      // debug
+      if (debug) console.log(
+        'rect2circ',{x,y},{angle: Math.round(angle*180/Math.PI)},res
+      );
+      return res;
+    }
+    
+    
+    function mapTri2Circ(x,y) {
+      // input x,y are from top,left of rect 100x100
+      // output x,y are from center of circle radius 100
+      const d = 100 - y;
+      // singularity at tip
+      if (d <= 0) {
+        return { x: 0, y: 0 };
+      }
+      const angle = ( 2*Math.PI * x  - Math.PI * y) / d;
+      const res = {
+        x:d * Math.sin(angle),
+        y:-d * Math.cos(angle)
+      };
+      // debug
+      if (debug) console.log(
+        'tri2circ',{x,y},{angle: Math.round(angle*180/Math.PI), d},res
+      );
+      return res;
+    }
+    
+    
+    function mapCirc2Rect(x,y) {
+      // input x,y are from center of circle with radius 100
+      // output x,y are from top, left of rect with dimensions 100x100
+      const absangle = atan2(y,x)+Math.PI/2;
+      const angle = absmod(absangle,2*Math.PI);
+      const d = Math.sqrt(x**2+y**2);
+      const res = {
+        x:100*angle/(2*Math.PI),
+        y:100-d
+      };
+      if (debug) console.log(
+        'circ2rect',{x,y},{angle: Math.round(angle*180/Math.PI),d},res
+      );
+      return res;
+    }
+
+    function mapCirc2Tri(x,y) {
+      // input x,y are from center of circle with radius 100
+      // output x,y are from top, left of rect with dimensions 100 x 100
+      // clockwise is left to right
+      const absangle = atan2(y,x)+Math.PI/2;
+      const angle = absmod(absangle,2*Math.PI);
+      const d = Math.sqrt(x**2+y**2);
+      const res = {
+        x: d * angle/(2*Math.PI)+ (100-d)/2,
+        y: 100-d
+      };
+      if (debug) console.log(
+        'circ2tri',{x,y},{angle: Math.round(angle*180/Math.PI),d},res
+      );
+      return res;
+    }
+    
+  </script>
+
+</head>
+<body>
+  <h1>Twirl Mappings Tester</h1>
+  <div class="controls">
+    <label><input type="radio" name="mapType" value="rectangle" onChange="selectMapType(this)">rectangle</label>
+    <label><input type="radio" name="mapType" value="triangle" checked onChange="selectMapType(this)">triangle</label>
+  </div>
+  <div id="canvas-container"></div>
+
+</body>
+</html>
