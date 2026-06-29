@@ -9,6 +9,9 @@
         margin:2em 0;
       }
     }
+    /* show editing canvas + input buffer per mode (body.drawing / body.random) */
+    body.drawing #input-container { display: none; }
+    body.random #canvas-container { display: none; }
   </style>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.9.0/p5.min.js"></script>
   <script src="yytwirl-mapping.js"></script>
@@ -51,6 +54,7 @@
     }
     function selectMapSource(inputElm) {
       mapSource = inputElm.value;
+      document.body.className = mapSource;   // drives the show/hide CSS
       refresh();
     }
     
@@ -317,7 +321,7 @@
   </script>
 
 </head>
-<body>
+<body class="drawing">
 
 <h1>Twirl Mappings</h1>
 
